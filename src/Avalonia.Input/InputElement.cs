@@ -197,6 +197,8 @@ namespace Avalonia.Input
         /// </summary>
         public static readonly RoutedEvent<TappedEventArgs> DoubleTappedEvent = Gestures.DoubleTappedEvent;
 
+        private static readonly HashSet<RoutedEvent> SupressedEventsWhenNotEnabled = new();
+
         private bool _isEffectivelyEnabled = true;
         private bool _isFocused;
         private bool _isKeyboardFocusWithin;
@@ -210,6 +212,19 @@ namespace Avalonia.Input
         static InputElement()
         {
             IsEnabledProperty.Changed.Subscribe(IsEnabledChanged);
+            
+            SupressEventWhenNotEnabled(GotFocusEvent, 
+                LostFocusEvent,
+                KeyDownEvent,
+                KeyUpEvent,
+                TextInputEvent,
+                PointerEnterEvent,
+                PointerLeaveEvent,
+                PointerMovedEvent,
+                PointerPressedEvent,
+                PointerReleasedEvent,
+                PointerCaptureLostEvent,
+                PointerWheelChangedEvent);
 
             GotFocusEvent.AddClassHandler<InputElement>((x, e) => x.OnGotFocus(e));
             LostFocusEvent.AddClassHandler<InputElement>((x, e) => x.OnLostFocus(e));
@@ -223,6 +238,14 @@ namespace Avalonia.Input
             PointerReleasedEvent.AddClassHandler<InputElement>((x, e) => x.OnPointerReleased(e));
             PointerCaptureLostEvent.AddClassHandler<InputElement>((x, e) => x.OnPointerCaptureLost(e));
             PointerWheelChangedEvent.AddClassHandler<InputElement>((x, e) => x.OnPointerWheelChanged(e));
+        }
+
+        protected static SupressEventsWhenNotEnabled(args RoutedEvent[] routedEvents)
+        {
+            foreach (var @event in routedEvents)
+            {
+                SupressedEventsWhenNotEnabled.Add(@event);
+            }
         }
 
         public InputElement()
@@ -633,6 +656,23 @@ namespace Avalonia.Input
             else if (change.Property == IsKeyboardFocusWithinProperty)
             {
                 PseudoClasses.Set(":focus-within", _isKeyboardFocusWithin);
+            }
+        }
+
+        public override void RaiseEvent(RoutedEventArgs e)
+        {
+            if (_isEffectivelyEnabled
+                || e.RoutedEvent is not {} @event /*allowing base method to handle invalid argument*/
+                || !SupressedEventsWhenNotEnabled.Contains(e.RoutedEvent))
+            {
+                base.RaiseEvent(e);
+                return;
+            }
+
+            if (@event.RoutingStrategies.HasAllFlags(RoutingStrategies.Bubble) ||
+                @event.RoutingStrategies.HasAllFlags(RoutingStrategies.Tunnel))
+            {
+                ((IInteractive)this).InteractiveParent?.RaiseEvent(e);
             }
         }
 
