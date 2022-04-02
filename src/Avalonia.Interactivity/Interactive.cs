@@ -109,7 +109,7 @@ namespace Avalonia.Interactivity
         /// Raises a routed event.
         /// </summary>
         /// <param name="e">The event args.</param>
-        public void RaiseEvent(RoutedEventArgs e)
+        public virtual void RaiseEvent(RoutedEventArgs e)
         {
             e = e ?? throw new ArgumentNullException(nameof(e));
 
